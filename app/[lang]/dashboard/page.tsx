@@ -1,61 +1,73 @@
 import Link from "next/link";
 import Image from "next/image";
 
-const navItems = [
-  { label: "Dashboard", href: "/dashboard" },
-  { label: "Map Tools", href: "/tools/spawnpoint-generator" },
-  { label: "Config Tools", href: "/tools/cfg-gameplay-editor" },
-  { label: "Converter", href: "/tools/json-to-dze" },
-  { label: "Discord Bot", href: "/discord-bot" },
-];
-
 const toolCategories = [
   {
     title: "Map Tools",
     description: "Spawnpoints, Kartenbereiche und Positionshilfen für Chernarus, Livonia und Sakhal.",
     tools: [
-      { name: "Spawnpoint Generator", href: "/tools/spawnpoint-generator", status: "Bereit" },
-      { name: "Map Zone Planner", href: "/tools/map-zone-planner", status: "Bald" },
-      { name: "Route Builder", href: "/tools/route-builder", status: "Bald" },
+      { name: "Spawnpoint Generator", slug: "spawnpoint-generator", status: "Bereit" },
+      { name: "Map Zone Planner", slug: "map-zone-planner", status: "Bald" },
+      { name: "Route Builder", slug: "route-builder", status: "Bald" },
     ],
   },
   {
     title: "Config Tools",
     description: "Bearbeite DayZ-Konfigurationen schneller und übersichtlicher.",
     tools: [
-      { name: "CFGGameplay Editor", href: "/tools/cfg-gameplay-editor", status: "Bereit" },
-      { name: "Weather Generator", href: "/tools/weather-generator", status: "Bereit" },
-      { name: "Message Generator", href: "/tools/message-generator", status: "Bereit" },
+      { name: "CFGGameplay Editor", slug: "cfg-gameplay-editor", status: "Bereit" },
+      { name: "Weather Generator", slug: "weather-generator", status: "Bereit" },
+      { name: "Message Generator", slug: "message-generator", status: "Bereit" },
     ],
   },
   {
     title: "Economy Tools",
     description: "Loot, Loadouts und Balancing für deinen Server anpassen.",
     tools: [
-      { name: "Loadout Generator", href: "/tools/loadout-generator", status: "Bereit" },
-      { name: "Trader Generator", href: "/tools/trader-generator", status: "Bald" },
-      { name: "Loot Table Helper", href: "/tools/loot-table-helper", status: "Bald" },
+      { name: "Loadout Generator", slug: "loadout-generator", status: "Bereit" },
+      { name: "Trader Generator", slug: "trader-generator", status: "Bald" },
+      { name: "Loot Table Helper", slug: "loot-table-helper", status: "Bald" },
     ],
   },
   {
     title: "Converter & Validator",
     description: "Dateien prüfen, umwandeln und für DayZ vorbereiten.",
     tools: [
-      { name: "JSON to DZE", href: "/tools/json-to-dze", status: "Bereit" },
-      { name: "JSON Validator", href: "/tools/json-validator", status: "Bereit" },
-      { name: "XML Validator", href: "/tools/xml-validator", status: "Bereit" },
+      { name: "JSON to DZE", slug: "json-to-dze", status: "Bereit" },
+      { name: "JSON Validator", slug: "json-validator", status: "Bereit" },
+      { name: "XML Validator", slug: "xml-validator", status: "Bereit" },
     ],
   },
 ];
 
-export default function DashboardPage() {
+export default function DashboardPage({
+  params,
+}: {
+  params: { lang: string };
+}) {
+  const lang = params.lang === "en" ? "en" : "de";
+
+  const navItems = [
+    { label: "Dashboard", href: `/${lang}/dashboard` },
+    { label: "Map Tools", href: `/${lang}/tools/spawnpoint-generator` },
+    { label: "Config Tools", href: `/${lang}/tools/cfg-gameplay-editor` },
+    { label: "Converter", href: `/${lang}/tools/json-to-dze` },
+    { label: "Discord Bot", href: `/${lang}/dashboard` },
+  ];
+
   return (
     <main className="min-h-screen bg-black text-white">
       <header className="sticky top-0 z-50 border-b border-white/10 bg-black/70 backdrop-blur-xl">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4">
-          <Link href="/" className="flex items-center gap-3">
+          <Link href={`/${lang}`} className="flex items-center gap-3">
             <div className="rounded-2xl border border-white/10 bg-white/5 p-2">
-              <Image src="/logo.png" alt="Step Mod!Z Logo" width={42} height={42} className="h-10 w-10 object-contain" />
+              <Image
+                src="/logo.png"
+                alt="Step Mod!Z Logo"
+                width={42}
+                height={42}
+                className="h-10 w-10 object-contain"
+              />
             </div>
             <div>
               <p className="text-lg font-black tracking-tight">Step Mod!Z</p>
@@ -80,7 +92,7 @@ export default function DashboardPage() {
               StepDede_ModderZ
             </div>
             <Link
-              href="/tools/spawnpoint-generator"
+              href={`/${lang}/tools/spawnpoint-generator`}
               className="rounded-2xl border border-green-500/30 bg-green-500/15 px-4 py-2 text-sm font-semibold text-green-300 transition hover:bg-green-500/20"
             >
               Tools öffnen
@@ -88,6 +100,7 @@ export default function DashboardPage() {
           </div>
         </div>
       </header>
+
       <section className="relative overflow-hidden border-b border-white/10 bg-gradient-to-br from-red-950/50 via-black to-green-950/40">
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.08),transparent_40%)]" />
         <div className="relative mx-auto flex max-w-7xl flex-col gap-8 px-6 py-16 lg:flex-row lg:items-center lg:justify-between">
@@ -100,17 +113,16 @@ export default function DashboardPage() {
             </h1>
             <p className="mt-4 max-w-2xl text-base text-white/70 sm:text-lg">
               Verwalte Generatoren, Editoren und Converter für deinen DayZ-Server in einer klaren Oberfläche.
-              Inspiriert vom Tool-Hub-Stil, aber als eigene Step Mod!Z Plattform aufgebaut.
             </p>
             <div className="mt-8 flex flex-wrap gap-4">
               <Link
-                href="/"
+                href={`/${lang}`}
                 className="rounded-2xl border border-white/10 bg-white px-5 py-3 font-semibold text-black transition hover:scale-[1.02]"
               >
                 Zur Startseite
               </Link>
               <Link
-                href="/tools/spawnpoint-generator"
+                href={`/${lang}/tools/spawnpoint-generator`}
                 className="rounded-2xl border border-green-500/30 bg-green-500/15 px-5 py-3 font-semibold text-green-300 transition hover:bg-green-500/20"
               >
                 Spawnpoint Generator öffnen
@@ -165,7 +177,7 @@ export default function DashboardPage() {
                 {category.tools.map((tool) => (
                   <Link
                     key={tool.name}
-                    href={tool.href}
+                    href={`/${lang}/tools/${tool.slug}`}
                     className="flex items-center justify-between rounded-2xl border border-white/10 bg-black/30 px-4 py-3 transition hover:border-green-500/30 hover:bg-green-500/10"
                   >
                     <span className="font-medium text-white/90">{tool.name}</span>
