@@ -40,6 +40,8 @@ const toolCategories = [
   },
 ];
 
+const logoPath = "/logo-new.png";
+
 export default function DashboardPage({
   params,
 }: {
@@ -59,10 +61,10 @@ export default function DashboardPage({
     <main className="min-h-screen bg-black text-white">
       <header className="sticky top-0 z-50 border-b border-white/10 bg-black/70 backdrop-blur-xl">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4">
-          <Link href={`/${lang}`} className="flex items-center gap-3">
+          <Link href="/" className="flex items-center gap-3">
             <div className="rounded-2xl border border-white/10 bg-white/5 p-2">
               <Image
-                src="/logo.png"
+                src={logoPath}
                 alt="Step Mod!Z Logo"
                 width={42}
                 height={42}
@@ -116,7 +118,7 @@ export default function DashboardPage({
             </p>
             <div className="mt-8 flex flex-wrap gap-4">
               <Link
-                href={`/${lang}`}
+                href="/"
                 className="rounded-2xl border border-white/10 bg-white px-5 py-3 font-semibold text-black transition hover:scale-[1.02]"
               >
                 Zur Startseite
@@ -135,7 +137,7 @@ export default function DashboardPage({
             <div className="absolute h-72 w-72 rounded-full bg-green-600/20 blur-3xl" />
             <div className="relative rounded-3xl border border-white/10 bg-white/5 p-6 shadow-2xl backdrop-blur-xl">
               <Image
-                src="/logo.png"
+                src={logoPath}
                 alt="Step Mod!Z Logo"
                 width={280}
                 height={280}
