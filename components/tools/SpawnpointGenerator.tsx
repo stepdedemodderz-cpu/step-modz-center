@@ -16,8 +16,8 @@ type MapKey = "chernarus" | "livonia" | "sakhal";
 
 type SpawnPoint = {
   id: string;
-  x: number; // pixel x on image
-  y: number; // pixel y on image
+  x: number;
+  y: number;
   label: string;
   map: MapKey;
 };
@@ -98,13 +98,13 @@ function FitBounds({ bounds }: { bounds: L.LatLngBoundsExpression }) {
   const map = useMap();
 
   useEffect(() => {
-    map.fitBounds(bounds, { padding: [20, 20] });
+    map.fitBounds(bounds, { padding: [24, 24] });
   }, [map, bounds]);
 
   return null;
 }
 
-function GridLayer({
+function GridOverlay({
   width,
   height,
   divisions = 10,
@@ -128,7 +128,7 @@ function GridLayer({
           top: 0,
           bottom: 0,
           width: 1,
-          background: "rgba(255,255,255,.18)",
+          background: "rgba(255,255,255,.14)",
           pointerEvents: "none",
         }}
       />
@@ -143,7 +143,7 @@ function GridLayer({
           left: 0,
           right: 0,
           height: 1,
-          background: "rgba(255,255,255,.18)",
+          background: "rgba(255,255,255,.14)",
           pointerEvents: "none",
         }}
       />
@@ -317,7 +317,7 @@ export default function SpawnpointGenerator() {
           <div>
             <h3 className="h3">{currentMap.name} Map Stage</h3>
             <div className="small muted" style={{ marginTop: 6 }}>
-              Bildpixel-basierte Karte für exakte Klickpunkte.
+              Größere Karte ohne leere Fläche unten.
             </div>
           </div>
           <div className="badge small">{currentMap.image}</div>
@@ -332,7 +332,7 @@ export default function SpawnpointGenerator() {
             border: "1px solid var(--line)",
             background: "#0b1118",
             width: "100%",
-            height: "86vh",
+            height: "88vh",
             minHeight: 760,
             maxHeight: 1200,
             position: "relative",
@@ -345,15 +345,16 @@ export default function SpawnpointGenerator() {
                 crs={L.CRS.Simple}
                 bounds={bounds}
                 maxBounds={bounds}
+                maxBoundsViscosity={1}
                 zoom={0}
-                minZoom={-2}
+                minZoom={-1.5}
                 maxZoom={4}
                 zoomSnap={0.25}
                 zoomDelta={0.5}
                 scrollWheelZoom
                 doubleClickZoom
                 attributionControl={false}
-                style={{ width: "100%", height: "100%" }}
+                style={{ width: "100%", height: "100%", background: "#0b1118" }}
               >
                 <FitBounds bounds={bounds} />
                 <ImageOverlay url={currentMap.image} bounds={bounds} />
@@ -425,7 +426,7 @@ export default function SpawnpointGenerator() {
                     zIndex: 400,
                   }}
                 >
-                  <GridLayer width={imageSize.width} height={imageSize.height} />
+                  <GridOverlay width={imageSize.width} height={imageSize.height} />
                 </div>
               )}
 
