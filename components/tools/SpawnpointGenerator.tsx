@@ -218,13 +218,181 @@ export default function SpawnpointGenerator() {
         </div>
       </div>
 
-      <div
-        className="grid"
-        style={{
-          gridTemplateColumns: "280px minmax(0,1fr) 340px",
-          alignItems: "start",
-        }}
-      >
+      <section className="card" style={{ padding: 20 }}>
+        <div className="row" style={{ justifyContent: "space-between", alignItems: "center" }}>
+          <div>
+            <h3 className="h3">{currentMap.name} Map Stage</h3>
+            <div className="small muted" style={{ marginTop: 6 }}>
+              Karte oben in Vollbreite mit Grid-Overlay und Live-Koordinaten.
+            </div>
+          </div>
+          <div className="badge small">{currentMap.image}</div>
+        </div>
+
+        <div className="space" />
+
+        <div
+          style={{
+            overflow: "hidden",
+            borderRadius: 24,
+            border: "1px solid var(--line)",
+            background: "#0b1118",
+            width: "100%",
+            height: "85vh",
+            minHeight: 720,
+            maxHeight: 1100,
+            position: "relative",
+          }}
+        >
+          <div
+            ref={stageRef}
+            onMouseDown={handleMouseDown}
+            onMouseMove={handleMouseMove}
+            onMouseUp={handleMouseUp}
+            onMouseLeave={() => {
+              handleMouseUp();
+              setHover(null);
+            }}
+            onClick={handleStageClick}
+            style={{
+              width: "100%",
+              height: "100%",
+              overflow: "hidden",
+              cursor: isDragging ? "grabbing" : "grab",
+              position: "relative",
+              userSelect: "none",
+            }}
+          >
+            <div
+              style={{
+                position: "absolute",
+                inset: 0,
+                backgroundImage: `url(${currentMap.image})`,
+                backgroundRepeat: "no-repeat",
+                backgroundSize: "contain",
+                backgroundPosition: "center",
+                transform: `translate(${position.x}px, ${position.y}px) scale(${zoom})`,
+                transformOrigin: "center center",
+              }}
+            />
+
+            {showGrid && (
+              <div
+                style={{
+                  position: "absolute",
+                  inset: 0,
+                  pointerEvents: "none",
+                  opacity: 0.28,
+                  backgroundImage: `
+                    linear-gradient(rgba(255,255,255,.18) 1px, transparent 1px),
+                    linear-gradient(90deg, rgba(255,255,255,.18) 1px, transparent 1px)
+                  `,
+                  backgroundSize: `${80 * zoom}px ${80 * zoom}px`,
+                  backgroundPosition: `${position.x}px ${position.y}px`,
+                }}
+              />
+            )}
+
+            {hover && (
+              <>
+                <div
+                  style={{
+                    position: "absolute",
+                    left: `${hover.x}%`,
+                    top: 0,
+                    bottom: 0,
+                    width: 1,
+                    background: "rgba(72,208,95,.6)",
+                    pointerEvents: "none",
+                  }}
+                />
+                <div
+                  style={{
+                    position: "absolute",
+                    top: `${hover.y}%`,
+                    left: 0,
+                    right: 0,
+                    height: 1,
+                    background: "rgba(72,208,95,.6)",
+                    pointerEvents: "none",
+                  }}
+                />
+              </>
+            )}
+
+            {filteredPoints.map((point, index) => (
+              <button
+                key={point.id}
+                title={`${point.label} (${point.x.toFixed(2)}%, ${point.y.toFixed(2)}%)`}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  removePoint(point.id);
+                }}
+                className="map-point"
+                style={{
+                  left: `${point.x}%`,
+                  top: `${point.y}%`,
+                  width: 32,
+                  height: 32,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  fontWeight: 700,
+                  color: "#fff",
+                  fontSize: 13,
+                  zIndex: 10,
+                }}
+              >
+                {index + 1}
+              </button>
+            ))}
+
+            {hover && (
+              <div
+                className="card"
+                style={{
+                  position: "absolute",
+                  right: 16,
+                  top: 16,
+                  padding: "10px 12px",
+                  background: "rgba(0,0,0,.68)",
+                  zIndex: 20,
+                  pointerEvents: "none",
+                }}
+              >
+                <div className="small muted">
+                  % {hover.x.toFixed(2)} / {hover.y.toFixed(2)}
+                </div>
+                <div className="small" style={{ marginTop: 4 }}>
+                  {hoverWorld?.worldX} / {hoverWorld?.worldZ}
+                </div>
+              </div>
+            )}
+
+            {!filteredPoints.length && (
+              <div
+                className="card"
+                style={{
+                  position: "absolute",
+                  left: 24,
+                  right: 24,
+                  bottom: 24,
+                  padding: 14,
+                  borderStyle: "dashed",
+                  background: "rgba(0,0,0,.45)",
+                  zIndex: 20,
+                }}
+              >
+                <span className="small muted">
+                  Noch keine Punkte gesetzt. Zoome hinein und klicke auf die Karte.
+                </span>
+              </div>
+            )}
+          </div>
+        </div>
+      </section>
+
+      <div className="grid grid-2" style={{ alignItems: "start" }}>
         <aside className="card" style={{ padding: 20 }}>
           <h3 className="h3">Maps</h3>
           <div className="space" />
@@ -286,10 +454,7 @@ export default function SpawnpointGenerator() {
             </div>
 
             <div className="row">
-              <button
-                className="btn btn-secondary"
-                onClick={() => setShowGrid((v) => !v)}
-              >
+              <button className="btn btn-secondary" onClick={() => setShowGrid((v) => !v)}>
                 {showGrid ? "Grid ausblenden" : "Grid einblenden"}
               </button>
             </div>
@@ -324,180 +489,6 @@ export default function SpawnpointGenerator() {
             </div>
           </div>
         </aside>
-
-        <section className="card" style={{ padding: 20 }}>
-          <div className="row" style={{ justifyContent: "space-between", alignItems: "center" }}>
-            <div>
-              <h3 className="h3">{currentMap.name} Map Stage</h3>
-              <div className="small muted" style={{ marginTop: 6 }}>
-                Vollbreite, sauberes Seitenverhältnis und Grid-Overlay.
-              </div>
-            </div>
-            <div className="badge small">{currentMap.image}</div>
-          </div>
-
-          <div className="space" />
-
-          <div
-            style={{
-              overflow: "hidden",
-              borderRadius: 24,
-              border: "1px solid var(--line)",
-              background: "#0b1118",
-              width: "100%",
-              height: "78vh",
-              minHeight: 700,
-              maxHeight: 980,
-              position: "relative",
-            }}
-          >
-            <div
-              ref={stageRef}
-              onMouseDown={handleMouseDown}
-              onMouseMove={handleMouseMove}
-              onMouseUp={handleMouseUp}
-              onMouseLeave={() => {
-                handleMouseUp();
-                setHover(null);
-              }}
-              onClick={handleStageClick}
-              style={{
-                width: "100%",
-                height: "100%",
-                overflow: "hidden",
-                cursor: isDragging ? "grabbing" : "grab",
-                position: "relative",
-                userSelect: "none",
-              }}
-            >
-              <div
-                style={{
-                  position: "absolute",
-                  inset: 0,
-                  backgroundImage: `url(${currentMap.image})`,
-                  backgroundRepeat: "no-repeat",
-                  backgroundSize: "contain",
-                  backgroundPosition: "center",
-                  transform: `translate(${position.x}px, ${position.y}px) scale(${zoom})`,
-                  transformOrigin: "center center",
-                }}
-              />
-
-              {showGrid && (
-                <div
-                  style={{
-                    position: "absolute",
-                    inset: 0,
-                    pointerEvents: "none",
-                    opacity: 0.28,
-                    backgroundImage: `
-                      linear-gradient(rgba(255,255,255,.18) 1px, transparent 1px),
-                      linear-gradient(90deg, rgba(255,255,255,.18) 1px, transparent 1px)
-                    `,
-                    backgroundSize: `${80 * zoom}px ${80 * zoom}px`,
-                    backgroundPosition: `${position.x}px ${position.y}px`,
-                  }}
-                />
-              )}
-
-              {hover && (
-                <>
-                  <div
-                    style={{
-                      position: "absolute",
-                      left: `${hover.x}%`,
-                      top: 0,
-                      bottom: 0,
-                      width: 1,
-                      background: "rgba(72,208,95,.6)",
-                      pointerEvents: "none",
-                    }}
-                  />
-                  <div
-                    style={{
-                      position: "absolute",
-                      top: `${hover.y}%`,
-                      left: 0,
-                      right: 0,
-                      height: 1,
-                      background: "rgba(72,208,95,.6)",
-                      pointerEvents: "none",
-                    }}
-                  />
-                </>
-              )}
-
-              {filteredPoints.map((point, index) => (
-                <button
-                  key={point.id}
-                  title={`${point.label} (${point.x.toFixed(2)}%, ${point.y.toFixed(2)}%)`}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    removePoint(point.id);
-                  }}
-                  className="map-point"
-                  style={{
-                    left: `${point.x}%`,
-                    top: `${point.y}%`,
-                    width: 32,
-                    height: 32,
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    fontWeight: 700,
-                    color: "#fff",
-                    fontSize: 13,
-                    zIndex: 10,
-                  }}
-                >
-                  {index + 1}
-                </button>
-              ))}
-
-              {hover && (
-                <div
-                  className="card"
-                  style={{
-                    position: "absolute",
-                    right: 16,
-                    top: 16,
-                    padding: "10px 12px",
-                    background: "rgba(0,0,0,.68)",
-                    zIndex: 20,
-                    pointerEvents: "none",
-                  }}
-                >
-                  <div className="small muted">
-                    % {hover.x.toFixed(2)} / {hover.y.toFixed(2)}
-                  </div>
-                  <div className="small" style={{ marginTop: 4 }}>
-                    {hoverWorld?.worldX} / {hoverWorld?.worldZ}
-                  </div>
-                </div>
-              )}
-
-              {!filteredPoints.length && (
-                <div
-                  className="card"
-                  style={{
-                    position: "absolute",
-                    left: 24,
-                    right: 24,
-                    bottom: 24,
-                    padding: 14,
-                    borderStyle: "dashed",
-                    background: "rgba(0,0,0,.45)",
-                    zIndex: 20,
-                  }}
-                >
-                  <span className="small muted">
-                    Noch keine Punkte gesetzt. Zoome hinein und klicke auf die Karte.
-                  </span>
-                </div>
-              )}
-            </div>
-          </div>
-        </section>
 
         <aside className="card" style={{ padding: 20 }}>
           <div className="row" style={{ justifyContent: "space-between", alignItems: "center" }}>
