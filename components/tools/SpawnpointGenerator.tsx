@@ -28,6 +28,12 @@ type MapConfig = {
   image: string;
   worldSize: number;
   description: string;
+  initialFocus: {
+    xMin: number;
+    yMin: number;
+    xMax: number;
+    yMax: number;
+  };
 };
 
 const maps: MapConfig[] = [
@@ -37,6 +43,12 @@ const maps: MapConfig[] = [
     image: "/maps/chernarus.jpg",
     worldSize: 15360,
     description: "Große klassische DayZ-Map mit Küste, Städten und Militärzonen.",
+    initialFocus: {
+      xMin: 0.18,
+      yMin: 0.18,
+      xMax: 0.88,
+      yMax: 0.78,
+    },
   },
   {
     key: "livonia",
@@ -44,6 +56,12 @@ const maps: MapConfig[] = [
     image: "/maps/livonia.jpg",
     worldSize: 12800,
     description: "Waldreiche Map mit Flüssen, Dörfern und dichter Vegetation.",
+    initialFocus: {
+      xMin: 0.15,
+      yMin: 0.15,
+      xMax: 0.88,
+      yMax: 0.82,
+    },
   },
   {
     key: "sakhal",
@@ -51,6 +69,12 @@ const maps: MapConfig[] = [
     image: "/maps/sakhal.jpg",
     worldSize: 12800,
     description: "Schneereiche Map für härtere Survival-Setups und neue Spawn-Routen.",
+    initialFocus: {
+      xMin: 0.14,
+      yMin: 0.14,
+      xMax: 0.86,
+      yMax: 0.82,
+    },
   },
 ];
 
@@ -94,12 +118,25 @@ function markerIcon(index: number) {
   });
 }
 
-function FitBounds({ bounds }: { bounds: L.LatLngBoundsExpression }) {
+function FocusBounds({
+  width,
+  height,
+  focus,
+}: {
+  width: number;
+  height: number;
+  focus: MapConfig["initialFocus"];
+}) {
   const map = useMap();
 
   useEffect(() => {
-    map.fitBounds(bounds, { padding: [24, 24] });
-  }, [map, bounds]);
+    const bounds: L.LatLngBoundsExpression = [
+      [height * focus.yMin, width * focus.xMin],
+      [height * focus.yMax, width * focus.xMax],
+    ];
+
+    map.fitBounds(bounds, { padding: [24, 24], animate: false });
+  }, [map, width, height, focus]);
 
   return null;
 }
@@ -300,7 +337,7 @@ export default function SpawnpointGenerator() {
         <div className="space" />
         <h2 className="h2">Exakte Spawnpoints mit echtem Karten-Zoom</h2>
         <p className="muted">
-          Scroll-Zoom, Drag-Pan, exakter Klickpunkt und Marker per Drag & Drop.
+          Karte startet direkt näher dran und lässt sich sauber zoomen und verschieben.
         </p>
         <div className="row" style={{ marginTop: 16 }}>
           <button className="btn btn-primary" onClick={exportJson}>
@@ -317,7 +354,7 @@ export default function SpawnpointGenerator() {
           <div>
             <h3 className="h3">{currentMap.name} Map Stage</h3>
             <div className="small muted" style={{ marginTop: 6 }}>
-              Größere Karte ohne leere Fläche unten.
+              Startet direkt näher in einem sinnvollen Kartenbereich.
             </div>
           </div>
           <div className="badge small">{currentMap.image}</div>
@@ -356,7 +393,12 @@ export default function SpawnpointGenerator() {
                 attributionControl={false}
                 style={{ width: "100%", height: "100%", background: "#0b1118" }}
               >
-                <FitBounds bounds={bounds} />
+                <FocusBounds
+                  width={imageSize.width}
+                  height={imageSize.height}
+                  focus={currentMap.initialFocus}
+                />
+
                 <ImageOverlay url={currentMap.image} bounds={bounds} />
 
                 <MapEventsHandler
