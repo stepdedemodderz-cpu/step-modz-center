@@ -1,13 +1,23 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import L from "leaflet";
+import {
+  ImageOverlay,
+  MapContainer,
+  Marker,
+  Popup,
+  Tooltip,
+  useMap,
+  useMapEvents,
+} from "react-leaflet";
 
 type MapKey = "chernarus" | "livonia" | "sakhal";
 
 type SpawnPoint = {
   id: string;
-  x: number;
-  y: number;
+  x: number; // pixel x on image
+  y: number; // pixel y on image
   label: string;
   map: MapKey;
 };
@@ -44,10 +54,6 @@ const maps: MapConfig[] = [
   },
 ];
 
-function toDayzCoordinate(percent: number, worldSize: number) {
-  return Math.round((percent / 100) * worldSize);
-}
-
 function clamp(value: number, min: number, max: number) {
   return Math.min(max, Math.max(min, value));
 }
@@ -62,113 +68,203 @@ function downloadFile(filename: string, content: string, mime = "application/jso
   URL.revokeObjectURL(url);
 }
 
+function markerIcon(index: number) {
+  return L.divIcon({
+    className: "",
+    html: `
+      <div style="
+        width:32px;
+        height:32px;
+        border-radius:999px;
+        background:#ec2027;
+        color:#fff;
+        border:2px solid #fff;
+        display:flex;
+        align-items:center;
+        justify-content:center;
+        font-weight:800;
+        font-size:13px;
+        box-shadow:0 0 0 8px rgba(236,32,39,.18);
+      ">
+        ${index + 1}
+      </div>
+    `,
+    iconSize: [32, 32],
+    iconAnchor: [16, 16],
+  });
+}
+
+function FitBounds({ bounds }: { bounds: L.LatLngBoundsExpression }) {
+  const map = useMap();
+
+  useEffect(() => {
+    map.fitBounds(bounds, { padding: [20, 20] });
+  }, [map, bounds]);
+
+  return null;
+}
+
+function GridLayer({
+  width,
+  height,
+  divisions = 10,
+}: {
+  width: number;
+  height: number;
+  divisions?: number;
+}) {
+  const lines = [];
+
+  for (let i = 1; i < divisions; i++) {
+    const x = (width / divisions) * i;
+    const y = (height / divisions) * i;
+
+    lines.push(
+      <div
+        key={`v-${i}`}
+        style={{
+          position: "absolute",
+          left: `${(x / width) * 100}%`,
+          top: 0,
+          bottom: 0,
+          width: 1,
+          background: "rgba(255,255,255,.18)",
+          pointerEvents: "none",
+        }}
+      />
+    );
+
+    lines.push(
+      <div
+        key={`h-${i}`}
+        style={{
+          position: "absolute",
+          top: `${(y / height) * 100}%`,
+          left: 0,
+          right: 0,
+          height: 1,
+          background: "rgba(255,255,255,.18)",
+          pointerEvents: "none",
+        }}
+      />
+    );
+  }
+
+  return <>{lines}</>;
+}
+
+function MapEventsHandler({
+  width,
+  height,
+  onAddPoint,
+  onHover,
+}: {
+  width: number;
+  height: number;
+  onAddPoint: (x: number, y: number) => void;
+  onHover: (x: number | null, y: number | null) => void;
+}) {
+  useMapEvents({
+    click(e) {
+      const x = clamp(e.latlng.lng, 0, width);
+      const y = clamp(e.latlng.lat, 0, height);
+      onAddPoint(x, y);
+    },
+    mousemove(e) {
+      const x = clamp(e.latlng.lng, 0, width);
+      const y = clamp(e.latlng.lat, 0, height);
+      onHover(x, y);
+    },
+    mouseout() {
+      onHover(null, null);
+    },
+  });
+
+  return null;
+}
+
 export default function SpawnpointGenerator() {
   const [activeMap, setActiveMap] = useState<MapKey>("chernarus");
   const [points, setPoints] = useState<SpawnPoint[]>([]);
-  const [zoom, setZoom] = useState(1.4);
   const [draftLabel, setDraftLabel] = useState("Spawn");
-  const [position, setPosition] = useState({ x: 0, y: 0 });
-  const [isDragging, setIsDragging] = useState(false);
-  const [dragMoved, setDragMoved] = useState(false);
-  const [start, setStart] = useState({ x: 0, y: 0 });
   const [hover, setHover] = useState<{ x: number; y: number } | null>(null);
   const [showGrid, setShowGrid] = useState(true);
-
-  const stageRef = useRef<HTMLDivElement | null>(null);
+  const [imageSize, setImageSize] = useState({ width: 0, height: 0, ready: false });
 
   const currentMap = maps.find((m) => m.key === activeMap) ?? maps[0];
   const filteredPoints = points.filter((point) => point.map === activeMap);
 
+  useEffect(() => {
+    setImageSize({ width: 0, height: 0, ready: false });
+
+    const img = new window.Image();
+    img.onload = () => {
+      setImageSize({
+        width: img.naturalWidth,
+        height: img.naturalHeight,
+        ready: true,
+      });
+    };
+    img.src = currentMap.image;
+  }, [currentMap.image]);
+
+  const bounds = useMemo(() => {
+    if (!imageSize.ready) return [[0, 0], [1000, 1000]] as L.LatLngBoundsExpression;
+    return [
+      [0, 0],
+      [imageSize.height, imageSize.width],
+    ] as L.LatLngBoundsExpression;
+  }, [imageSize]);
+
   const exportData = useMemo(() => {
+    if (!imageSize.ready) return [];
+
     return filteredPoints.map((point, index) => ({
       id: point.id,
       name: point.label || `Spawn ${index + 1}`,
       map: point.map,
-      percentX: Number(point.x.toFixed(2)),
-      percentY: Number(point.y.toFixed(2)),
-      worldX: toDayzCoordinate(point.x, currentMap.worldSize),
-      worldZ: toDayzCoordinate(point.y, currentMap.worldSize),
+      worldX: Math.round((point.x / imageSize.width) * currentMap.worldSize),
+      worldZ: Math.round((point.y / imageSize.height) * currentMap.worldSize),
+      percentX: Number(((point.x / imageSize.width) * 100).toFixed(2)),
+      percentY: Number(((point.y / imageSize.height) * 100).toFixed(2)),
     }));
-  }, [filteredPoints, currentMap.worldSize]);
+  }, [filteredPoints, currentMap.worldSize, imageSize]);
 
   const hoverWorld = useMemo(() => {
-    if (!hover) return null;
+    if (!hover || !imageSize.ready) return null;
+
     return {
-      worldX: toDayzCoordinate(hover.x, currentMap.worldSize),
-      worldZ: toDayzCoordinate(hover.y, currentMap.worldSize),
+      worldX: Math.round((hover.x / imageSize.width) * currentMap.worldSize),
+      worldZ: Math.round((hover.y / imageSize.height) * currentMap.worldSize),
+      percentX: ((hover.x / imageSize.width) * 100).toFixed(2),
+      percentY: ((hover.y / imageSize.height) * 100).toFixed(2),
     };
-  }, [hover, currentMap.worldSize]);
+  }, [hover, currentMap.worldSize, imageSize]);
 
-  const resetView = () => {
-    setZoom(1.4);
-    setPosition({ x: 0, y: 0 });
-  };
-
-  const handleMapChange = (mapKey: MapKey) => {
-    setActiveMap(mapKey);
-    setZoom(1.4);
-    setPosition({ x: 0, y: 0 });
-    setHover(null);
-  };
-
-  const handleMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
-    setIsDragging(true);
-    setDragMoved(false);
-    setStart({
-      x: e.clientX - position.x,
-      y: e.clientY - position.y,
-    });
-  };
-
-  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
-    const rect = stageRef.current?.getBoundingClientRect();
-    if (!rect) return;
-
-    const localX = (e.clientX - rect.left - position.x) / zoom;
-    const localY = (e.clientY - rect.top - position.y) / zoom;
-
-    const percentX = clamp((localX / rect.width) * 100, 0, 100);
-    const percentY = clamp((localY / rect.height) * 100, 0, 100);
-
-    setHover({ x: percentX, y: percentY });
-
-    if (!isDragging) return;
-
-    setDragMoved(true);
-    setPosition({
-      x: e.clientX - start.x,
-      y: e.clientY - start.y,
-    });
-  };
-
-  const handleMouseUp = () => {
-    setIsDragging(false);
-    setTimeout(() => setDragMoved(false), 0);
-  };
-
-  const handleStageClick = (event: React.MouseEvent<HTMLDivElement>) => {
-    if (dragMoved) return;
-
-    const rect = stageRef.current?.getBoundingClientRect();
-    if (!rect) return;
-
-    const localX = (event.clientX - rect.left - position.x) / zoom;
-    const localY = (event.clientY - rect.top - position.y) / zoom;
-
-    const percentX = (localX / rect.width) * 100;
-    const percentY = (localY / rect.height) * 100;
-
-    if (percentX < 0 || percentX > 100 || percentY < 0 || percentY > 100) return;
-
+  const addPoint = (x: number, y: number) => {
     const nextPoint: SpawnPoint = {
       id: crypto.randomUUID(),
-      x: percentX,
-      y: percentY,
+      x,
+      y,
       label: `${draftLabel} ${filteredPoints.length + 1}`,
       map: activeMap,
     };
 
     setPoints((prev) => [...prev, nextPoint]);
+  };
+
+  const updatePoint = (id: string, x: number, y: number) => {
+    setPoints((prev) =>
+      prev.map((point) =>
+        point.id === id
+          ? {
+              ...point,
+              x: clamp(x, 0, imageSize.width),
+              y: clamp(y, 0, imageSize.height),
+            }
+          : point
+      )
+    );
   };
 
   const clearCurrentMap = () => {
@@ -187,6 +283,8 @@ export default function SpawnpointGenerator() {
           server: "Step Mod!Z",
           map: activeMap,
           worldSize: currentMap.worldSize,
+          imageWidth: imageSize.width,
+          imageHeight: imageSize.height,
           points: exportData,
         },
         null,
@@ -198,12 +296,11 @@ export default function SpawnpointGenerator() {
   return (
     <div className="stack">
       <div className="card hero-card">
-        <div className="badge">Step Mod!Z · Spawnpoint Generator Pro</div>
+        <div className="badge">Step Mod!Z · Spawnpoint Generator Leaflet</div>
         <div className="space" />
-        <h2 className="h2">Spawnpoints mit Vollbreite, Grid und Live-Koordinaten</h2>
+        <h2 className="h2">Exakte Spawnpoints mit echtem Karten-Zoom</h2>
         <p className="muted">
-          Zoome tief in die Karte hinein, verschiebe sie per Drag, nutze das Grid-Overlay
-          und setze präzise Spawnpunkte mit Live-Koordinaten.
+          Scroll-Zoom, Drag-Pan, exakter Klickpunkt und Marker per Drag & Drop.
         </p>
         <div className="row" style={{ marginTop: 16 }}>
           <button className="btn btn-primary" onClick={exportJson}>
@@ -211,9 +308,6 @@ export default function SpawnpointGenerator() {
           </button>
           <button className="btn btn-secondary" onClick={clearCurrentMap}>
             Aktive Map leeren
-          </button>
-          <button className="btn btn-secondary" onClick={resetView}>
-            Ansicht zurücksetzen
           </button>
         </div>
       </div>
@@ -223,7 +317,7 @@ export default function SpawnpointGenerator() {
           <div>
             <h3 className="h3">{currentMap.name} Map Stage</h3>
             <div className="small muted" style={{ marginTop: 6 }}>
-              Karte oben in Vollbreite mit Grid-Overlay und Live-Koordinaten.
+              Bildpixel-basierte Karte für exakte Klickpunkte.
             </div>
           </div>
           <div className="badge small">{currentMap.image}</div>
@@ -238,157 +332,138 @@ export default function SpawnpointGenerator() {
             border: "1px solid var(--line)",
             background: "#0b1118",
             width: "100%",
-            height: "85vh",
-            minHeight: 720,
-            maxHeight: 1100,
+            height: "86vh",
+            minHeight: 760,
+            maxHeight: 1200,
             position: "relative",
           }}
         >
-          <div
-            ref={stageRef}
-            onMouseDown={handleMouseDown}
-            onMouseMove={handleMouseMove}
-            onMouseUp={handleMouseUp}
-            onMouseLeave={() => {
-              handleMouseUp();
-              setHover(null);
-            }}
-            onClick={handleStageClick}
-            style={{
-              width: "100%",
-              height: "100%",
-              overflow: "hidden",
-              cursor: isDragging ? "grabbing" : "grab",
-              position: "relative",
-              userSelect: "none",
-            }}
-          >
+          {imageSize.ready ? (
+            <>
+              <MapContainer
+                key={`${activeMap}-${imageSize.width}-${imageSize.height}`}
+                crs={L.CRS.Simple}
+                bounds={bounds}
+                maxBounds={bounds}
+                zoom={0}
+                minZoom={-2}
+                maxZoom={4}
+                zoomSnap={0.25}
+                zoomDelta={0.5}
+                scrollWheelZoom
+                doubleClickZoom
+                attributionControl={false}
+                style={{ width: "100%", height: "100%" }}
+              >
+                <FitBounds bounds={bounds} />
+                <ImageOverlay url={currentMap.image} bounds={bounds} />
+
+                <MapEventsHandler
+                  width={imageSize.width}
+                  height={imageSize.height}
+                  onAddPoint={addPoint}
+                  onHover={(x, y) => {
+                    if (x === null || y === null) {
+                      setHover(null);
+                      return;
+                    }
+                    setHover({ x, y });
+                  }}
+                />
+
+                {filteredPoints.map((point, index) => (
+                  <Marker
+                    key={point.id}
+                    position={[point.y, point.x]}
+                    icon={markerIcon(index)}
+                    draggable
+                    eventHandlers={{
+                      dragend: (e) => {
+                        const marker = e.target;
+                        const latlng = marker.getLatLng();
+                        updatePoint(point.id, latlng.lng, latlng.lat);
+                      },
+                    }}
+                  >
+                    <Tooltip direction="top" offset={[0, -18]} permanent>
+                      {point.label}
+                    </Tooltip>
+                    <Popup>
+                      <div style={{ minWidth: 180 }}>
+                        <strong>{point.label}</strong>
+                        <div style={{ marginTop: 8, fontSize: 13 }}>
+                          World X / Z:{" "}
+                          {Math.round((point.x / imageSize.width) * currentMap.worldSize)} /{" "}
+                          {Math.round((point.y / imageSize.height) * currentMap.worldSize)}
+                        </div>
+                        <button
+                          style={{
+                            marginTop: 10,
+                            border: "1px solid rgba(255,255,255,.12)",
+                            background: "#111620",
+                            color: "#fff",
+                            borderRadius: 10,
+                            padding: "8px 10px",
+                            cursor: "pointer",
+                          }}
+                          onClick={() => removePoint(point.id)}
+                        >
+                          Löschen
+                        </button>
+                      </div>
+                    </Popup>
+                  </Marker>
+                ))}
+              </MapContainer>
+
+              {showGrid && (
+                <div
+                  style={{
+                    position: "absolute",
+                    inset: 0,
+                    pointerEvents: "none",
+                    zIndex: 400,
+                  }}
+                >
+                  <GridLayer width={imageSize.width} height={imageSize.height} />
+                </div>
+              )}
+
+              {hoverWorld && (
+                <div
+                  className="card"
+                  style={{
+                    position: "absolute",
+                    right: 16,
+                    top: 16,
+                    padding: "10px 12px",
+                    background: "rgba(0,0,0,.72)",
+                    zIndex: 999,
+                    pointerEvents: "none",
+                  }}
+                >
+                  <div className="small muted">
+                    % {hoverWorld.percentX} / {hoverWorld.percentY}
+                  </div>
+                  <div className="small" style={{ marginTop: 4 }}>
+                    {hoverWorld.worldX} / {hoverWorld.worldZ}
+                  </div>
+                </div>
+              )}
+            </>
+          ) : (
             <div
               style={{
-                position: "absolute",
-                inset: 0,
-                backgroundImage: `url(${currentMap.image})`,
-                backgroundRepeat: "no-repeat",
-                backgroundSize: "contain",
-                backgroundPosition: "center",
-                transform: `translate(${position.x}px, ${position.y}px) scale(${zoom})`,
-                transformOrigin: "center center",
+                display: "grid",
+                placeItems: "center",
+                width: "100%",
+                height: "100%",
+                color: "var(--muted)",
               }}
-            />
-
-            {showGrid && (
-              <div
-                style={{
-                  position: "absolute",
-                  inset: 0,
-                  pointerEvents: "none",
-                  opacity: 0.28,
-                  backgroundImage: `
-                    linear-gradient(rgba(255,255,255,.18) 1px, transparent 1px),
-                    linear-gradient(90deg, rgba(255,255,255,.18) 1px, transparent 1px)
-                  `,
-                  backgroundSize: `${80 * zoom}px ${80 * zoom}px`,
-                  backgroundPosition: `${position.x}px ${position.y}px`,
-                }}
-              />
-            )}
-
-            {hover && (
-              <>
-                <div
-                  style={{
-                    position: "absolute",
-                    left: `${hover.x}%`,
-                    top: 0,
-                    bottom: 0,
-                    width: 1,
-                    background: "rgba(72,208,95,.6)",
-                    pointerEvents: "none",
-                  }}
-                />
-                <div
-                  style={{
-                    position: "absolute",
-                    top: `${hover.y}%`,
-                    left: 0,
-                    right: 0,
-                    height: 1,
-                    background: "rgba(72,208,95,.6)",
-                    pointerEvents: "none",
-                  }}
-                />
-              </>
-            )}
-
-            {filteredPoints.map((point, index) => (
-              <button
-                key={point.id}
-                title={`${point.label} (${point.x.toFixed(2)}%, ${point.y.toFixed(2)}%)`}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  removePoint(point.id);
-                }}
-                className="map-point"
-                style={{
-                  left: `${point.x}%`,
-                  top: `${point.y}%`,
-                  width: 32,
-                  height: 32,
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  fontWeight: 700,
-                  color: "#fff",
-                  fontSize: 13,
-                  zIndex: 10,
-                }}
-              >
-                {index + 1}
-              </button>
-            ))}
-
-            {hover && (
-              <div
-                className="card"
-                style={{
-                  position: "absolute",
-                  right: 16,
-                  top: 16,
-                  padding: "10px 12px",
-                  background: "rgba(0,0,0,.68)",
-                  zIndex: 20,
-                  pointerEvents: "none",
-                }}
-              >
-                <div className="small muted">
-                  % {hover.x.toFixed(2)} / {hover.y.toFixed(2)}
-                </div>
-                <div className="small" style={{ marginTop: 4 }}>
-                  {hoverWorld?.worldX} / {hoverWorld?.worldZ}
-                </div>
-              </div>
-            )}
-
-            {!filteredPoints.length && (
-              <div
-                className="card"
-                style={{
-                  position: "absolute",
-                  left: 24,
-                  right: 24,
-                  bottom: 24,
-                  padding: 14,
-                  borderStyle: "dashed",
-                  background: "rgba(0,0,0,.45)",
-                  zIndex: 20,
-                }}
-              >
-                <span className="small muted">
-                  Noch keine Punkte gesetzt. Zoome hinein und klicke auf die Karte.
-                </span>
-              </div>
-            )}
-          </div>
+            >
+              Kartenbild wird geladen...
+            </div>
+          )}
         </div>
       </section>
 
@@ -403,7 +478,7 @@ export default function SpawnpointGenerator() {
               return (
                 <button
                   key={map.key}
-                  onClick={() => handleMapChange(map.key)}
+                  onClick={() => setActiveMap(map.key)}
                   className="tool-link"
                   style={{
                     textAlign: "left",
@@ -437,22 +512,6 @@ export default function SpawnpointGenerator() {
               />
             </div>
 
-            <div>
-              <label className="label">Zoom</label>
-              <input
-                type="range"
-                min={1}
-                max={6}
-                step={0.1}
-                value={zoom}
-                onChange={(e) => setZoom(Number(e.target.value))}
-                style={{ width: "100%" }}
-              />
-              <div className="small muted" style={{ marginTop: 6 }}>
-                Aktuell: {zoom.toFixed(1)}x
-              </div>
-            </div>
-
             <div className="row">
               <button className="btn btn-secondary" onClick={() => setShowGrid((v) => !v)}>
                 {showGrid ? "Grid ausblenden" : "Grid einblenden"}
@@ -460,31 +519,15 @@ export default function SpawnpointGenerator() {
             </div>
 
             <div className="card" style={{ padding: 14 }}>
-              <div className="small muted">Live Mausposition</div>
-              <div style={{ marginTop: 10, lineHeight: 1.7 }}>
-                <div className="small">
-                  % X / Y:{" "}
-                  <strong>
-                    {hover ? `${hover.x.toFixed(2)} / ${hover.y.toFixed(2)}` : "- / -"}
-                  </strong>
-                </div>
-                <div className="small" style={{ marginTop: 6 }}>
-                  World X / Z:{" "}
-                  <strong>
-                    {hoverWorld ? `${hoverWorld.worldX} / ${hoverWorld.worldZ}` : "- / -"}
-                  </strong>
-                </div>
-              </div>
-            </div>
-
-            <div className="card" style={{ padding: 14 }}>
               <div className="small muted">Hinweise</div>
               <div className="small" style={{ marginTop: 8, lineHeight: 1.6 }}>
-                Linke Maustaste gedrückt halten = Karte verschieben
+                Scrollrad = zoomen
                 <br />
-                Klick ohne Ziehen = Spawnpunkt setzen
+                Linke Maustaste = verschieben
                 <br />
-                Hohes Zoom = mehr Präzision
+                Klick = Punkt setzen
+                <br />
+                Marker ziehen = Position ändern
               </div>
             </div>
           </div>
@@ -518,15 +561,23 @@ export default function SpawnpointGenerator() {
                     <div className="card" style={{ padding: 12 }}>
                       <div className="small muted">% X / Y</div>
                       <div style={{ marginTop: 6, fontWeight: 700 }}>
-                        {point.x.toFixed(2)} / {point.y.toFixed(2)}
+                        {imageSize.ready
+                          ? `${((point.x / imageSize.width) * 100).toFixed(2)} / ${(
+                              (point.y / imageSize.height) *
+                              100
+                            ).toFixed(2)}`
+                          : "- / -"}
                       </div>
                     </div>
 
                     <div className="card" style={{ padding: 12 }}>
                       <div className="small muted">World X / Z</div>
                       <div style={{ marginTop: 6, fontWeight: 700 }}>
-                        {toDayzCoordinate(point.x, currentMap.worldSize)} /{" "}
-                        {toDayzCoordinate(point.y, currentMap.worldSize)}
+                        {imageSize.ready
+                          ? `${Math.round((point.x / imageSize.width) * currentMap.worldSize)} / ${Math.round(
+                              (point.y / imageSize.height) * currentMap.worldSize
+                            )}`
+                          : "- / -"}
                       </div>
                     </div>
                   </div>
