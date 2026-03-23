@@ -3,7 +3,7 @@ export type DayzMapKey = "chernarus" | "livonia" | "sakhal";
 export type DayzMapConfig = {
   key: DayzMapKey;
   label: string;
-  imageUrl: "/maps/chernarus.png"
+  imageUrl: string;
   bounds: [[number, number], [number, number]];
   center: [number, number];
   zoom: number;
