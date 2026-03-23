@@ -1,5 +1,4 @@
 import Link from "next/link";
-import Image from "next/image";
 
 const toolCategories = [
   {
@@ -40,8 +39,6 @@ const toolCategories = [
   },
 ];
 
-const logoPath = "/logo-new.png";
-
 export default function DashboardPage({
   params,
 }: {
@@ -64,10 +61,10 @@ export default function DashboardPage({
           <Link href="/" className="flex items-center gap-3">
             <div className="rounded-2xl border border-white/10 bg-white/5 p-2">
               <img
-              src="/logo-new.png"
-              alt="logo"
-              className="h-10 w-10 object-contain"
-            />
+                src="/logo-new.png?v=2"
+                alt="Step Mod!Z Logo"
+                className="h-10 w-10 object-contain"
+              />
             </div>
             <div>
               <p className="text-lg font-black tracking-tight">Step Mod!Z</p>
@@ -135,10 +132,10 @@ export default function DashboardPage({
             <div className="absolute h-72 w-72 rounded-full bg-green-600/20 blur-3xl" />
             <div className="relative rounded-3xl border border-white/10 bg-white/5 p-6 shadow-2xl backdrop-blur-xl">
               <img
-            src="/logo-new.png"
-            alt="logo"
-            className="h-auto w-[220px] object-contain sm:w-[280px]"
-          />
+                src="/logo-new.png?v=2"
+                alt="Step Mod!Z Logo"
+                className="h-auto w-[220px] object-contain sm:w-[280px]"
+              />
             </div>
           </div>
         </div>
