@@ -63,13 +63,11 @@ export default function DashboardPage({
         <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4">
           <Link href="/" className="flex items-center gap-3">
             <div className="rounded-2xl border border-white/10 bg-white/5 p-2">
-              <Image
-                src={logoPath}
-                alt="Step Mod!Z Logo"
-                width={42}
-                height={42}
-                className="h-10 w-10 object-contain"
-              />
+              <img
+              src="/logo-new.png"
+              alt="logo"
+              className="h-10 w-10 object-contain"
+            />
             </div>
             <div>
               <p className="text-lg font-black tracking-tight">Step Mod!Z</p>
@@ -136,14 +134,11 @@ export default function DashboardPage({
             <div className="absolute h-72 w-72 rounded-full bg-red-600/20 blur-3xl" />
             <div className="absolute h-72 w-72 rounded-full bg-green-600/20 blur-3xl" />
             <div className="relative rounded-3xl border border-white/10 bg-white/5 p-6 shadow-2xl backdrop-blur-xl">
-              <Image
-                src={logoPath}
-                alt="Step Mod!Z Logo"
-                width={280}
-                height={280}
-                className="h-auto w-[220px] object-contain sm:w-[280px]"
-                priority
-              />
+              <img
+            src="/logo-new.png"
+            alt="logo"
+            className="h-auto w-[220px] object-contain sm:w-[280px]"
+          />
             </div>
           </div>
         </div>
